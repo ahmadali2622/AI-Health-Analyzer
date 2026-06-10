@@ -45,18 +45,20 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Load Models ──────────────────────────────────────────────────
+# ✅ Replace with this
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 @st.cache_resource
 def load_models():
-    diabetes_model     = pickle.load(open('models/diabetes.pkl', 'rb'))
-    heart_model        = pickle.load(open('models/heart.pkl', 'rb'))
-    kidney_model       = pickle.load(open('models/kidney.pkl', 'rb'))
-    liver_model        = pickle.load(open('models/liver.pkl', 'rb'))
-    hypertension_model = pickle.load(open('models/hypertension.pkl', 'rb'))
-    scaler             = pickle.load(open('models/scaler.pkl', 'rb'))
+    models_path = os.path.join(BASE_DIR, '..', 'Models')
+    diabetes_model     = pickle.load(open(os.path.join(models_path, 'diabetes.pkl'), 'rb'))
+    heart_model        = pickle.load(open(os.path.join(models_path, 'heart.pkl'), 'rb'))
+    kidney_model       = pickle.load(open(os.path.join(models_path, 'kidney.pkl'), 'rb'))
+    liver_model        = pickle.load(open(os.path.join(models_path, 'liver.pkl'), 'rb'))
+    hypertension_model = pickle.load(open(os.path.join(models_path, 'hypertension.pkl'), 'rb'))
+    scaler             = pickle.load(open(os.path.join(models_path, 'scaler.pkl'), 'rb'))
     return diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler
-
-diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler = load_models()
-
 # ── Header ───────────────────────────────────────────────────────
 st.markdown("<h1 style='text-align:center; color:#00C9A7;'>🏥 AI Health Analyzer</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:gray;'>Upload a lab report PDF or enter values manually for a 5-disease risk assessment</p>", unsafe_allow_html=True)
