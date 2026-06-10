@@ -59,6 +59,7 @@ def load_models():
     hypertension_model = pickle.load(open(os.path.join(models_path, 'hypertension.pkl'), 'rb'))
     scaler             = pickle.load(open(os.path.join(models_path, 'scaler.pkl'), 'rb'))
     return diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler
+diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler = load_models()
 # ── Header ───────────────────────────────────────────────────────
 st.markdown("<h1 style='text-align:center; color:#00C9A7;'>🏥 AI Health Analyzer</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:gray;'>Upload a lab report PDF or enter values manually for a 5-disease risk assessment</p>", unsafe_allow_html=True)
