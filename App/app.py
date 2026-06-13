@@ -163,7 +163,7 @@ def extract_patient_info(pdf_text):
 # ── PDF Section ───────────────────────────────────────────────────
 st.markdown('<div class="pdf-section">', unsafe_allow_html=True)
 st.markdown("### 📄 Upload Lab Report PDF *(optional)*")
-st.caption("Upload a PDF lab report to auto-fill patient fields. You can still edit any value manually after extraction, or just fill everything yourself if you don't have a PDF.")
+st.caption("Upload a PDF lab report to auto-fill patient fields. Age and Gender must be entered manually if not found in the PDF. Other missing fields will default to normal/healthy values, which you can edit.")
 
 uploaded_pdf = st.file_uploader("Choose a PDF file", type=["pdf"], label_visibility="collapsed")
 
@@ -198,6 +198,21 @@ field_keys = ['age', 'glucose', 'HbA1c', 'bmi', 'sysBP', 'diaBP',
 int_fields = {'age', 'glucose', 'sysBP', 'diaBP', 'chol', 'alt', 'ast'}
 float_fields = {'HbA1c', 'bmi', 'hemo', 'creatinine'}
 
+# Normal/healthy default values used when a field isn't found in the PDF.
+# age and gender are intentionally excluded — they're required from the user.
+normal_defaults = {
+    'glucose': 100,
+    'HbA1c': 5.4,
+    'bmi': 22.0,
+    'sysBP': 118,
+    'diaBP': 78,
+    'chol': 180,
+    'hemo': 14.0,
+    'creatinine': 0.9,
+    'alt': 25,
+    'ast': 25,
+}
+
 def cast_field(k, v):
     if v is None:
         return None
@@ -209,17 +224,27 @@ def cast_field(k, v):
 
 for k in field_keys:
     if k not in st.session_state:
-        st.session_state[k] = cast_field(k, extracted.get(k))
+        val = cast_field(k, extracted.get(k))
+        if val is None and k in normal_defaults:
+            val = cast_field(k, normal_defaults[k])
+        st.session_state[k] = val  # age/gender stay None if not found in PDF
 
 # Track the last processed PDF so re-uploading a NEW pdf overwrites fields,
 # but rerunning with the SAME pdf doesn't keep resetting your edits.
 last_pdf_name = st.session_state.get('_last_pdf_name')
 current_pdf_name = uploaded_pdf.name if uploaded_pdf is not None else None
 
-if current_pdf_name is not None and current_pdf_name != last_pdf_name and extracted:
-    for k, v in extracted.items():
-        if v is not None and k in field_keys:
+if current_pdf_name is not None and current_pdf_name != last_pdf_name:
+    for k in field_keys:
+        v = extracted.get(k)
+        if v is not None:
             st.session_state[k] = cast_field(k, v)
+        elif k in normal_defaults:
+            # Not found in this PDF — reset to normal default
+            st.session_state[k] = cast_field(k, normal_defaults[k])
+        else:
+            # age / gender — clear so user must enter manually
+            st.session_state[k] = None
     st.session_state['_last_pdf_name'] = current_pdf_name
 elif current_pdf_name is None:
     st.session_state['_last_pdf_name'] = None
@@ -240,7 +265,7 @@ def status_badge(value, healthy_max, warning_max=None, unit="", low_warning=None
 # ── Input Section ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📋 Patient Information")
-st.caption("Fields auto-filled from PDF are editable — or fill everything yourself if you don't have a PDF.")
+st.caption("Fields auto-filled from PDF are editable — Age and Gender are required.")
 
 col1, col2, col3 = st.columns(3)
 
@@ -288,10 +313,10 @@ st.markdown("---")
 # ── Predict Button ───────────────────────────────────────────────
 if st.button("🔬 Analyze Health Report", use_container_width=True):
 
-    # ── Validate that everything is filled in ─────────────────────
+    # ── Validate required fields (age, gender) ─────────────────────
     missing = [k for k in field_keys if st.session_state[k] is None]
     if missing:
-        st.error(f"⚠️ Please fill in all fields before analyzing. Missing: {', '.join(missing)}")
+        st.error(f"⚠️ Please fill in: {', '.join(missing)} — these could not be detected from the PDF.")
         st.stop()
 
     gender_male = 1 if gender == "Male" else 0
