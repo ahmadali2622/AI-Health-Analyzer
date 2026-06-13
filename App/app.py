@@ -42,6 +42,15 @@ st.markdown("""
         padding: 16px;
         margin-bottom: 20px;
     }
+
+    /* Hide number_input +/- step buttons */
+    button[data-testid="stNumberInputStepDown"],
+    button[data-testid="stNumberInputStepUp"] {
+        display: none !important;
+    }
+    div[data-testid="stNumberInput"] > div {
+        padding-right: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -182,13 +191,25 @@ if uploaded_pdf is not None:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Session State Initialization ─────────────────────────────────
-# Fields start empty (None) unless extracted from PDF.
 field_keys = ['age', 'glucose', 'HbA1c', 'bmi', 'sysBP', 'diaBP',
                'chol', 'hemo', 'creatinine', 'alt', 'ast', 'gender']
 
+# Fields that must be int vs float (must match number_input min/max types below)
+int_fields = {'age', 'glucose', 'sysBP', 'diaBP', 'chol', 'alt', 'ast'}
+float_fields = {'HbA1c', 'bmi', 'hemo', 'creatinine'}
+
+def cast_field(k, v):
+    if v is None:
+        return None
+    if k in int_fields:
+        return int(v)
+    elif k in float_fields:
+        return float(v)
+    return v  # gender, etc.
+
 for k in field_keys:
     if k not in st.session_state:
-        st.session_state[k] = extracted.get(k)  # None if not in extracted
+        st.session_state[k] = cast_field(k, extracted.get(k))
 
 # Track the last processed PDF so re-uploading a NEW pdf overwrites fields,
 # but rerunning with the SAME pdf doesn't keep resetting your edits.
@@ -198,7 +219,7 @@ current_pdf_name = uploaded_pdf.name if uploaded_pdf is not None else None
 if current_pdf_name is not None and current_pdf_name != last_pdf_name and extracted:
     for k, v in extracted.items():
         if v is not None and k in field_keys:
-            st.session_state[k] = v
+            st.session_state[k] = cast_field(k, v)
     st.session_state['_last_pdf_name'] = current_pdf_name
 elif current_pdf_name is None:
     st.session_state['_last_pdf_name'] = None
