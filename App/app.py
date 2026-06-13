@@ -272,7 +272,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     age = st.number_input("Age", min_value=1, max_value=120, value=st.session_state['age'], key='age')
     glucose = st.number_input("Blood Glucose (mg/dL)", min_value=50, max_value=500, value=st.session_state['glucose'], key='glucose')
-    st.markdown(status_badge(glucose, 99, 125, " mg/dL"), unsafe_allow_html=True)
+    st.markdown(status_badge(glucose, 100, 125, " mg/dL"), unsafe_allow_html=True)
 
     HbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=st.session_state['HbA1c'], key='HbA1c')
     st.markdown(status_badge(HbA1c, 5.6, 6.4, "%"), unsafe_allow_html=True)
