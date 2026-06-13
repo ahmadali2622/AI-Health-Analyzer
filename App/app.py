@@ -6,291 +6,457 @@ import matplotlib.pyplot as plt
 import re
 import io
 import os
-import pdfplumber
 
-# ─────────────────────────────────────────────
-# PAGE CONFIG
-# ─────────────────────────────────────────────
+# ── Page Config ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="AI Health Analyzer",
     page_icon="🏥",
     layout="wide"
 )
 
-# ─────────────────────────────────────────────
-# THEME (PRIMARY COLOR #0060A9)
-# ─────────────────────────────────────────────
+# ── Custom CSS ───────────────────────────────────────────────────
 st.markdown("""
 <style>
-
-.stApp {
-    background-color: #F5F9FC;
-}
-
-h1, h2, h3 {
-    color: #0060A9 !important;
-}
-
-/* Button */
-.stButton > button {
-    background: #0060A9;
-    color: white;
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-weight: bold;
-    border: none;
-}
-
-.stButton > button:hover {
-    background: #004C86;
-    transform: scale(1.02);
-}
-
-/* Inputs */
-.stNumberInput input, .stTextInput input, .stSelectbox {
-    border: 2px solid #0060A9 !important;
-    border-radius: 8px !important;
-}
-
-/* PDF box */
-.pdf-section {
-    background: #EAF3FB;
-    border: 2px dashed #0060A9;
-    border-radius: 12px;
-    padding: 16px;
-}
-
-/* Badges */
-.healthy-badge {
-    background: #D6F5E3;
-    color: #0B6B3A;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-weight: bold;
-}
-
-.warning-badge {
-    background: #FFF4D6;
-    color: #8A6D00;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-weight: bold;
-}
-
-.danger-badge {
-    background: #FFD6D6;
-    color: #8A1F1F;
-    padding: 5px 10px;
-    border-radius: 8px;
-    font-weight: bold;
-}
-
+    .healthy-badge {
+        background: #d4edda; color: #155724;
+        border: 1px solid #c3e6cb; border-radius: 8px;
+        padding: 4px 12px; font-weight: bold; font-size: 13px;
+        display: inline-block; margin-top: 4px;
+    }
+    .warning-badge {
+        background: #fff3cd; color: #856404;
+        border: 1px solid #ffc107; border-radius: 8px;
+        padding: 4px 12px; font-weight: bold; font-size: 13px;
+        display: inline-block; margin-top: 4px;
+    }
+    .danger-badge {
+        background: #f8d7da; color: #721c24;
+        border: 1px solid #f5c6cb; border-radius: 8px;
+        padding: 4px 12px; font-weight: bold; font-size: 13px;
+        display: inline-block; margin-top: 4px;
+    }
+    .pdf-section {
+        background: #f0f4ff;
+        border: 2px dashed #7B9FE0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-# SESSION STATE INIT (IMPORTANT FIX)
-# ─────────────────────────────────────────────
-def init_state(key, value):
-    if key not in st.session_state:
-        st.session_state[key] = value
-
-init_state("age", 45)
-init_state("glucose", 120)
-init_state("HbA1c", 5.5)
-init_state("bmi", 25.0)
-init_state("sysBP", 120)
-init_state("diaBP", 80)
-init_state("chol", 180)
-init_state("hemo", 13.0)
-init_state("creatinine", 0.9)
-init_state("alt", 25)
-init_state("ast", 25)
-init_state("gender", "Male")
-
-# ─────────────────────────────────────────────
-# LOAD MODELS
-# ─────────────────────────────────────────────
+# ── Load Models ──────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @st.cache_resource
 def load_models():
     models_path = os.path.join(BASE_DIR, '..', 'Models')
-
-    diabetes_model = pickle.load(open(os.path.join(models_path, 'diabetes.pkl'), 'rb'))
-    heart_model = pickle.load(open(os.path.join(models_path, 'heart.pkl'), 'rb'))
-    kidney_model = pickle.load(open(os.path.join(models_path, 'kidney.pkl'), 'rb'))
-    liver_model = pickle.load(open(os.path.join(models_path, 'liver.pkl'), 'rb'))
+    diabetes_model     = pickle.load(open(os.path.join(models_path, 'diabetes.pkl'), 'rb'))
+    heart_model        = pickle.load(open(os.path.join(models_path, 'heart.pkl'), 'rb'))
+    kidney_model       = pickle.load(open(os.path.join(models_path, 'kidney.pkl'), 'rb'))
+    liver_model        = pickle.load(open(os.path.join(models_path, 'liver.pkl'), 'rb'))
     hypertension_model = pickle.load(open(os.path.join(models_path, 'hypertension.pkl'), 'rb'))
-    scaler = pickle.load(open(os.path.join(models_path, 'scaler.pkl'), 'rb'))
-
+    scaler             = pickle.load(open(os.path.join(models_path, 'scaler.pkl'), 'rb'))
     return diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler
 
 diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler = load_models()
 
-# ─────────────────────────────────────────────
-# PDF EXTRACTION
-# ─────────────────────────────────────────────
-def extract_value(text, patterns):
-    for p in patterns:
-        m = re.search(p, text, re.I)
-        if m:
+# ── Header ───────────────────────────────────────────────────────
+st.markdown("<h1 style='text-align:center; color:#00C9A7;'>🏥 AI Health Analyzer</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:gray;'>Upload a lab report PDF or enter values manually for a 5-disease risk assessment</p>", unsafe_allow_html=True)
+st.markdown("---")
+
+# ── PDF Upload & Extraction ──────────────────────────────────────
+def extract_value(text, patterns, default=None):
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
             try:
-                return float(m.group(1))
+                return float(match.group(1))
             except:
                 pass
-    return None
+    return default
 
-
-def extract_patient_info(text):
+def extract_patient_info(pdf_text):
     data = {}
 
-    data["age"] = extract_value(text, [r'age[:\s]+(\d+)'])
-    data["glucose"] = extract_value(text, [r'glucose[:\s]+([\d.]+)'])
-    data["HbA1c"] = extract_value(text, [r'hba1c[:\s]+([\d.]+)'])
-    data["bmi"] = extract_value(text, [r'bmi[:\s]+([\d.]+)'])
-    data["chol"] = extract_value(text, [r'cholesterol[:\s]+([\d.]+)'])
-    data["hemo"] = extract_value(text, [r'hemoglobin[:\s]+([\d.]+)'])
-    data["creatinine"] = extract_value(text, [r'creatinine[:\s]+([\d.]+)'])
-    data["alt"] = extract_value(text, [r'alt[:\s]+([\d.]+)'])
-    data["ast"] = extract_value(text, [r'ast[:\s]+([\d.]+)'])
+    data['age'] = extract_value(pdf_text, [
+        r'age[:\s]+(\d+)', r'patient age[:\s]+(\d+)', r'(\d+)\s*years?\s*old'
+    ])
 
-    bp = re.search(r'(\d{2,3})/(\d{2,3})', text)
-    if bp:
-        data["sysBP"] = float(bp.group(1))
-        data["diaBP"] = float(bp.group(2))
+    if re.search(r'\b(male|man|mr\.)\b', pdf_text, re.IGNORECASE):
+        data['gender'] = 'Male'
+    elif re.search(r'\b(female|woman|ms\.|mrs\.)\b', pdf_text, re.IGNORECASE):
+        data['gender'] = 'Female'
 
-    if re.search(r'\b(male|mr)\b', text, re.I):
-        data["gender"] = "Male"
-    elif re.search(r'\b(female|ms|mrs)\b', text, re.I):
-        data["gender"] = "Female"
+    data['glucose'] = extract_value(pdf_text, [
+        r'blood glucose[:\s]+([\d.]+)',
+        r'glucose[:\s]+([\d.]+)',
+        r'blood sugar[:\s]+([\d.]+)',
+        r'fasting glucose[:\s]+([\d.]+)',
+    ])
+
+    data['HbA1c'] = extract_value(pdf_text, [
+        r'hba1c[:\s]+([\d.]+)',
+        r'hb\s*a1c[:\s]+([\d.]+)',
+        r'glycated hemoglobin[:\s]+([\d.]+)',
+        r'a1c[:\s]+([\d.]+)',
+    ])
+
+    data['bmi'] = extract_value(pdf_text, [
+        r'bmi[:\s]+([\d.]+)',
+        r'body mass index[:\s]+([\d.]+)',
+    ])
+
+    bp_match = re.search(r'(\d{2,3})\s*/\s*(\d{2,3})', pdf_text)
+    if bp_match:
+        data['sysBP'] = float(bp_match.group(1))
+        data['diaBP'] = float(bp_match.group(2))
+    else:
+        data['sysBP'] = extract_value(pdf_text, [
+            r'systolic[:\s]+([\d.]+)', r'sys\s*bp[:\s]+([\d.]+)',
+        ])
+        data['diaBP'] = extract_value(pdf_text, [
+            r'diastolic[:\s]+([\d.]+)', r'dia\s*bp[:\s]+([\d.]+)',
+        ])
+
+    data['chol'] = extract_value(pdf_text, [
+        r'total cholesterol[:\s]+([\d.]+)',
+        r'cholesterol[:\s]+([\d.]+)',
+        r'chol[:\s]+([\d.]+)',
+    ])
+
+    data['hemo'] = extract_value(pdf_text, [
+        r'hemoglobin[:\s]+([\d.]+)',
+        r'haemoglobin[:\s]+([\d.]+)',
+        r'\bhgb[:\s]+([\d.]+)',
+        r'\bhb[:\s]+([\d.]+)',
+    ])
+
+    data['creatinine'] = extract_value(pdf_text, [
+        r'creatinine[:\s]+([\d.]+)',
+        r'serum creatinine[:\s]+([\d.]+)',
+    ])
+
+    data['alt'] = extract_value(pdf_text, [
+        r'\balt[:\s]+([\d.]+)',
+        r'alanine aminotransferase[:\s]+([\d.]+)',
+        r'sgpt[:\s]+([\d.]+)',
+    ])
+    data['ast'] = extract_value(pdf_text, [
+        r'\bast[:\s]+([\d.]+)',
+        r'aspartate aminotransferase[:\s]+([\d.]+)',
+        r'sgot[:\s]+([\d.]+)',
+    ])
 
     return data
 
-
-# ─────────────────────────────────────────────
-# PDF SECTION
-# ─────────────────────────────────────────────
+# ── PDF Section ───────────────────────────────────────────────────
 st.markdown('<div class="pdf-section">', unsafe_allow_html=True)
-st.subheader("📄 Upload Lab Report PDF")
+st.markdown("### 📄 Upload Lab Report PDF *(optional)*")
+st.caption("Upload a PDF lab report to auto-fill patient fields. You can still edit any value manually after extraction, or just fill everything yourself if you don't have a PDF.")
 
-uploaded = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed")
+uploaded_pdf = st.file_uploader("Choose a PDF file", type=["pdf"], label_visibility="collapsed")
 
 extracted = {}
-
-if uploaded:
+if uploaded_pdf is not None:
     try:
-        with pdfplumber.open(io.BytesIO(uploaded.read())) as pdf:
-            text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(uploaded_pdf.read())) as pdf:
+            full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-        extracted = extract_patient_info(text)
-
-        if extracted:
-            st.success(f"Extracted fields: {list(extracted.keys())}")
+        if full_text.strip():
+            extracted = extract_patient_info(full_text)
+            found = [k for k, v in extracted.items() if v is not None]
+            if found:
+                st.success(f"✅ Extracted {len(found)} field(s): {', '.join(found)}. Review and edit below.")
+            else:
+                st.warning("⚠️ PDF was read but no recognizable health values were found. Please fill in manually.")
         else:
-            st.warning("No data found in PDF")
+            st.warning("⚠️ Could not read text from this PDF (may be a scanned image). Please fill in manually.")
+    except ImportError:
+        st.error("❌ `pdfplumber` not installed. Run: `pip install pdfplumber` then restart.")
     except Exception as e:
-        st.error(e)
+        st.error(f"❌ Error reading PDF: {e}")
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-# INPUTS (FIXED SESSION STATE)
-# ─────────────────────────────────────────────
+# ── Session State Initialization ─────────────────────────────────
+# Fields start empty (None) unless extracted from PDF.
+field_keys = ['age', 'glucose', 'HbA1c', 'bmi', 'sysBP', 'diaBP',
+               'chol', 'hemo', 'creatinine', 'alt', 'ast', 'gender']
+
+for k in field_keys:
+    if k not in st.session_state:
+        st.session_state[k] = extracted.get(k)  # None if not in extracted
+
+# Track the last processed PDF so re-uploading a NEW pdf overwrites fields,
+# but rerunning with the SAME pdf doesn't keep resetting your edits.
+last_pdf_name = st.session_state.get('_last_pdf_name')
+current_pdf_name = uploaded_pdf.name if uploaded_pdf is not None else None
+
+if current_pdf_name is not None and current_pdf_name != last_pdf_name and extracted:
+    for k, v in extracted.items():
+        if v is not None and k in field_keys:
+            st.session_state[k] = v
+    st.session_state['_last_pdf_name'] = current_pdf_name
+elif current_pdf_name is None:
+    st.session_state['_last_pdf_name'] = None
+
+# ── Status badge helper ──────────────────────────────────────────
+def status_badge(value, healthy_max, warning_max=None, unit="", low_warning=None):
+    if value is None:
+        return ""
+    if low_warning is not None and value < low_warning:
+        return f'<span class="warning-badge">⚠️ Low ({value}{unit})</span>'
+    elif value <= healthy_max:
+        return f'<span class="healthy-badge">✅ Healthy ({value}{unit})</span>'
+    elif warning_max is not None and value <= warning_max:
+        return f'<span class="warning-badge">⚠️ Borderline ({value}{unit})</span>'
+    else:
+        return f'<span class="danger-badge">🔴 At Risk ({value}{unit})</span>'
+
+# ── Input Section ────────────────────────────────────────────────
+st.markdown("---")
 st.subheader("📋 Patient Information")
+st.caption("Fields auto-filled from PDF are editable — or fill everything yourself if you don't have a PDF.")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    age = st.number_input("Age", 1, 120, key="age")
-    glucose = st.number_input("Glucose", 50, 500, key="glucose")
-    HbA1c = st.number_input("HbA1c", 3.0, 15.0, key="HbA1c")
-    bmi = st.number_input("BMI", 10.0, 60.0, key="bmi")
+    age = st.number_input("Age", min_value=1, max_value=120, value=st.session_state['age'], key='age')
+    glucose = st.number_input("Blood Glucose (mg/dL)", min_value=50, max_value=500, value=st.session_state['glucose'], key='glucose')
+    st.markdown(status_badge(glucose, 99, 125, " mg/dL"), unsafe_allow_html=True)
+
+    HbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=st.session_state['HbA1c'], key='HbA1c')
+    st.markdown(status_badge(HbA1c, 5.6, 6.4, "%"), unsafe_allow_html=True)
+
+    bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=st.session_state['bmi'], key='bmi')
+    st.markdown(status_badge(bmi, 24.9, 29.9, ""), unsafe_allow_html=True)
 
 with col2:
-    sysBP = st.number_input("Systolic BP", 80, 250, key="sysBP")
-    diaBP = st.number_input("Diastolic BP", 50, 150, key="diaBP")
-    chol = st.number_input("Cholesterol", 100, 600, key="chol")
-    hemo = st.number_input("Hemoglobin", 3.0, 20.0, key="hemo")
+    sysBP = st.number_input("Systolic BP (mmHg)", min_value=80, max_value=250, value=st.session_state['sysBP'], key='sysBP')
+    st.markdown(status_badge(sysBP, 120, 130, " mmHg"), unsafe_allow_html=True)
+
+    diaBP = st.number_input("Diastolic BP (mmHg)", min_value=50, max_value=150, value=st.session_state['diaBP'], key='diaBP')
+    st.markdown(status_badge(diaBP, 80, 89, " mmHg"), unsafe_allow_html=True)
+
+    chol = st.number_input("Cholesterol (mg/dL)", min_value=100, max_value=600, value=st.session_state['chol'], key='chol')
+    st.markdown(status_badge(chol, 199, 239, " mg/dL"), unsafe_allow_html=True)
+
+    hemo = st.number_input("Hemoglobin (g/dL)", min_value=3.0, max_value=20.0, value=st.session_state['hemo'], key='hemo')
+    st.markdown(status_badge(hemo, 17.0, None, " g/dL", low_warning=11.0), unsafe_allow_html=True)
 
 with col3:
-    creatinine = st.number_input("Creatinine", 0.1, 15.0, key="creatinine")
-    alt = st.number_input("ALT", 1, 500, key="alt")
-    ast = st.number_input("AST", 1, 500, key="ast")
-    gender = st.selectbox("Gender", ["Male", "Female"], key="gender")
+    creatinine = st.number_input("Creatinine (mg/dL)", min_value=0.1, max_value=15.0, value=st.session_state['creatinine'], key='creatinine')
+    st.markdown(status_badge(creatinine, 1.2, 1.5, " mg/dL"), unsafe_allow_html=True)
+
+    alt = st.number_input("ALT (U/L)", min_value=1, max_value=500, value=st.session_state['alt'], key='alt')
+    st.markdown(status_badge(alt, 40, 56, " U/L"), unsafe_allow_html=True)
+
+    ast = st.number_input("AST (U/L)", min_value=1, max_value=500, value=st.session_state['ast'], key='ast')
+    st.markdown(status_badge(ast, 40, 55, " U/L"), unsafe_allow_html=True)
+
+    gender_options = ["Male", "Female"]
+    gender_val = st.session_state['gender']
+    gender_index = gender_options.index(gender_val) if gender_val in gender_options else None
+    gender = st.selectbox("Gender", gender_options, index=gender_index, key='gender', placeholder="Select gender")
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────
-# PREDICTION
-# ─────────────────────────────────────────────
-if st.button("🔬 Analyze Health Report"):
+# ── Predict Button ───────────────────────────────────────────────
+if st.button("🔬 Analyze Health Report", use_container_width=True):
 
-    gender_male = 1 if st.session_state.gender == "Male" else 0
+    # ── Validate that everything is filled in ─────────────────────
+    missing = [k for k in field_keys if st.session_state[k] is None]
+    if missing:
+        st.error(f"⚠️ Please fill in all fields before analyzing. Missing: {', '.join(missing)}")
+        st.stop()
 
+    gender_male = 1 if gender == "Male" else 0
+
+    # ── Diabetes ──
     diabetes_input = pd.DataFrame([{
-        "age": age,
-        "bmi": bmi,
-        "HbA1c_level": HbA1c,
-        "blood_glucose_level": glucose,
-        "gender_Male": gender_male
+        'age': age, 'hypertension': 1 if sysBP > 130 else 0,
+        'heart_disease': 0, 'bmi': bmi,
+        'HbA1c_level': HbA1c, 'blood_glucose_level': glucose,
+        'gender_Male': gender_male, 'gender_Other': 0,
+        'smoking_history_current': 0, 'smoking_history_ever': 0,
+        'smoking_history_former': 0, 'smoking_history_never': 1,
+        'smoking_history_not current': 0,
     }])
+    diabetes_input_scaled = scaler.transform(diabetes_input)
+    dibeties = diabetes_model.predict(diabetes_input_scaled)[0]
 
-    diabetes = diabetes_model.predict(scaler.transform(diabetes_input))[0]
+    # ── Heart ──
+    heart_input = pd.DataFrame([{
+        'age': age, 'sex': gender_male, 'cp': 0,
+        'trestbps': sysBP, 'chol': chol,
+        'fbs': 1 if glucose > 120 else 0,
+        'restecg': 0, 'thalach': 75, 'exang': 0,
+        'oldpeak': 0.0, 'slope': 1, 'ca': 0, 'thal': 2
+    }])
+    heart = heart_model.predict(heart_input)[0]
 
-    heart = heart_model.predict(pd.DataFrame([{
-        "age": age,
-        "trestbps": sysBP,
-        "chol": chol,
-        "fbs": 1 if glucose > 120 else 0
-    }]))[0]
+    # ── Kidney ──
+    kidney_input = pd.DataFrame([{
+        'age': age, 'bp': sysBP, 'sg': 1.020,
+        'al': 0, 'su': 0, 'bgr': glucose,
+        'bu': 20, 'sc': creatinine,
+        'sod': 138, 'pot': 4.2, 'hemo': hemo,
+        'pcv': 40.0, 'wc': 7200.0, 'rc': 4.5,
+        'rbc_normal': 1, 'pc_normal': 1,
+        'pcc_present': 0, 'ba_present': 0,
+        'htn_yes': 1 if sysBP > 130 else 0,
+        'dm_yes': 1 if glucose > 140 else 0,
+        'cad_no': 1, 'cad_yes': 0,
+        'appet_poor': 0, 'pe_yes': 0, 'ane_yes': 0
+    }])
+    kidney_input = kidney_input.reindex(columns=kidney_model.feature_names_in_, fill_value=0)
+    kidney = kidney_model.predict(kidney_input)[0]
 
-    kidney = kidney_model.predict(pd.DataFrame([{
-        "age": age,
-        "bp": sysBP,
-        "bgr": glucose,
-        "sc": creatinine,
-        "hemo": hemo
-    }]))[0]
+    # ── Liver ──
+    liver_input = pd.DataFrame([{
+        'Age': age, 'Sex': gender_male,
+        'ALB': 4.0, 'ALP': 70, 'ALT': alt,
+        'AST': ast, 'BIL': 0.8, 'CHE': 8.0,
+        'CHOL': chol, 'CREA': creatinine,
+        'GGT': 30, 'PROT': 7.0
+    }])
+    liver_input = liver_input.reindex(columns=liver_model.feature_names_in_, fill_value=0)
+    liver = liver_model.predict(liver_input)[0]
 
-    liver = liver_model.predict(pd.DataFrame([{
-        "Age": age,
-        "ALT": alt,
-        "AST": ast,
-        "CHOL": chol,
-        "CREA": creatinine
-    }]))[0]
+    # ── Hypertension ──
+    hypertension_input = pd.DataFrame([{
+        'age': age, 'BMI': bmi,
+        'sysBP': sysBP, 'diaBP': diaBP,
+        'glucose': glucose, 'totChol': chol
+    }])
+    hypertension = hypertension_model.predict(hypertension_input)[0]
 
-    hypertension = hypertension_model.predict(pd.DataFrame([{
-        "age": age,
-        "BMI": bmi,
-        "sysBP": sysBP,
-        "diaBP": diaBP
-    }]))[0]
-
-    # ─────────────────────────────────────────────
-    # RESULTS
-    # ─────────────────────────────────────────────
-    st.subheader("📊 Results")
-
-    def show(name, val):
-        if val == 1:
-            st.error(f"{name}: At Risk")
+    # ── Clinical override rules ───────────────────────────────────
+    def clinical_diabetes(model_result):
+        if glucose >= 126 or HbA1c >= 6.5:
+            return 1
+        elif glucose < 100 and HbA1c < 5.7:
+            return 0
         else:
-            st.success(f"{name}: Healthy")
+            return model_result
 
-    show("Diabetes", diabetes)
-    show("Heart", heart)
-    show("Kidney", kidney)
-    show("Liver", liver)
-    show("Hypertension", hypertension)
+    def clinical_heart(model_result):
+        if chol > 240 or sysBP > 140:
+            return 1
+        elif chol < 200 and sysBP < 120:
+            return 0
+        else:
+            return model_result
 
-    # ─────────────────────────────────────────────
-    # CHART
-    # ─────────────────────────────────────────────
-    fig, ax = plt.subplots()
-    ax.bar(
-        ["Diabetes", "Heart", "Kidney", "Liver", "Hypertension"],
-        [diabetes, heart, kidney, liver, hypertension]
-    )
+    def clinical_kidney(model_result):
+        if creatinine > 1.2:
+            return 1
+        elif creatinine < 0.9:
+            return 0
+        else:
+            return model_result
+
+    def clinical_liver(model_result):
+        if alt > 56 or ast > 40:
+            return 1
+        elif alt < 25 and ast < 25:
+            return 0
+        else:
+            return model_result
+
+    def clinical_hypertension(model_result):
+        if sysBP > 130 or diaBP > 80:
+            return 1
+        elif sysBP < 120 and diaBP < 80:
+            return 0
+        else:
+            return model_result
+
+    dibeties_final     = clinical_diabetes(dibeties)
+    heart_final        = clinical_heart(heart)
+    kidney_final       = clinical_kidney(kidney)
+    liver_final        = clinical_liver(liver)
+    hypertension_final = clinical_hypertension(hypertension)
+
+    # ── Results ──────────────────────────────────────────────────
+    st.markdown("## 📊 Health Report Results")
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    def show_result(col, name, result, icon):
+        with col:
+            if result == 1:
+                st.error(f"{icon}\n\n**{name}**\n\n⚠️ At Risk")
+            else:
+                st.success(f"{icon}\n\n**{name}**\n\n✅ Healthy")
+
+    show_result(c1, "Diabetes",       dibeties_final,     "🩸")
+    show_result(c2, "Heart Disease",  heart_final,        "❤️")
+    show_result(c3, "Kidney Disease", kidney_final,       "🫘")
+    show_result(c4, "Liver Disease",  liver_final,        "🫀")
+    show_result(c5, "Hypertension",   hypertension_final, "💉")
+
+    # ── Bar Chart ────────────────────────────────────────────────
+    st.markdown("---")
+    labels = ["Diabetes", "Heart", "Kidney", "Liver", "Hypertension"]
+    values = [dibeties_final, heart_final, kidney_final, liver_final, hypertension_final]
+    colors = ["#E74C3C" if v == 1 else "#2ECC71" for v in values]
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    bars = ax.bar(labels, values, color=colors, width=0.5)
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width()/2,
+                bar.get_height() + 0.03,
+                "At Risk" if val == 1 else "Healthy",
+                ha='center', fontsize=10, fontweight='bold',
+                color="#E74C3C" if val == 1 else "#2ECC71")
+    ax.set_title("Disease Risk Analysis", fontsize=14, fontweight='bold')
+    ax.set_ylim(0, 1.4)
+    ax.set_yticks([0, 1], ["Healthy", "At Risk"])
     st.pyplot(fig)
+
+    # ── Recommendations ──────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("## 💊 Recommendations")
+
+    if glucose > 200:
+        st.warning("🔴 Very High Glucose — Immediate medical consultation recommended")
+    elif glucose > 140:
+        st.warning("🔴 Reduce Sugar Intake & HbA1c test Recommended")
+    elif glucose > 100:
+        st.info("🟡 Borderline Glucose — Monitor diet and sugar intake")
+    else:
+        st.success("✅ Glucose levels are Normal")
+
+    if sysBP > 140:
+        st.warning("🔴 Reduce Salt Intake & Check BP Regularly")
+    elif sysBP > 120:
+        st.info("🟡 Slightly Elevated BP — Reduce stress & salt")
+    else:
+        st.success("✅ Blood Pressure is Normal")
+
+    if chol > 240:
+        st.warning("🔴 Avoid Oily Food & Lipid Profile Test Recommended")
+    elif chol > 200:
+        st.info("🟡 Borderline Cholesterol — Reduce fried food")
+    else:
+        st.success("✅ Cholesterol is Normal")
+
+    if HbA1c > 6.5:
+        st.warning("🔴 High HbA1c — Consult a diabetologist")
+    elif HbA1c > 5.7:
+        st.info("🟡 Pre-diabetic HbA1c range — Monitor carefully")
+    else:
+        st.success("✅ HbA1c is Normal")
+
+    if creatinine > 1.2:
+        st.warning("🔴 High Creatinine — Kidney function test recommended")
+    else:
+        st.success("✅ Creatinine is Normal")
+
+    if alt > 56 or ast > 40:
+        st.warning("🔴 Elevated Liver Enzymes — Liver function test recommended")
+    else:
+        st.success("✅ Liver Enzymes are Normal")
