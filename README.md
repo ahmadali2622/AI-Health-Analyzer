@@ -1,39 +1,87 @@
 # 🏥 AI Health Analyzer
 
-AI Health Analyzer is a machine learning–based web application that predicts the risk of multiple diseases using patient health data. It provides instant analysis for **Diabetes, Heart Disease, Kidney Disease, Liver Disease, and Hypertension** in a single dashboard.
+An AI-powered health care web application that analyzes medical reports, predicts disease risk, and provides personalized health recommendations — all in one dashboard.
 
-Built with **Python, Scikit-learn, and Streamlit**, this project demonstrates an end-to-end machine learning pipeline — from data preprocessing and model training to deployment as an interactive web app.
+🔗 **Live Demo:** [ai-health-analyzer.streamlit.app](https://ai-health-analyzer.streamlit.app)
 
 ---
 
-## 🚀 Features
+## 📌 Overview
 
-- Predicts 5 major diseases at once from a single set of inputs
-- 📄 **Upload a lab report PDF** to auto-extract patient values (age, glucose, BP, cholesterol, etc.)
-- ✍️ Manual entry mode — fill in values yourself if no PDF is available
-- Editable auto-filled fields — review and correct extracted data before analysis
-- Hybrid prediction engine: ML models combined with clinical threshold rules for more reliable results
-- Real-time health status badges (Healthy / Borderline / At Risk) for each input
-- Visual result dashboard with bar chart comparison
-- Personalized health recommendations based on input values
-- Clean, responsive Streamlit UI
-- Lightweight and easy to deploy
+AI Health Analyzer uses machine learning to predict the risk of **5 major diseases** from patient health data. It supports both manual input and automatic PDF lab report extraction, making it accessible and practical for real-world use.
+
+---
+
+## ✨ Features
+
+- 🩺 Predicts **5 diseases simultaneously** from a single set of inputs
+- 📄 **PDF lab report upload** — auto-extracts patient values (glucose, BP, cholesterol, etc.)
+- ✍️ **Manual entry mode** — fill in values directly if no PDF is available
+- ✏️ Editable auto-filled fields — review and correct before analysis
+- 🔬 Hybrid prediction engine — ML models + clinical threshold rules
+- 🏷️ Real-time **health status badges** (Healthy / Borderline / At Risk)
+- 📊 Visual result dashboard with bar chart comparison
+- 💊 Personalized **diet plan & health recommendations**
+- 🧹 Clean, responsive Streamlit UI
 
 ---
 
 ## 🧠 Diseases Covered
 
-- 🩸 Diabetes  
-- ❤️ Heart Disease  
-- 🫘 Kidney Disease  
-- 🧪 Liver Disease  
-- 💉 Hypertension  
+| Disease | Model |
+|---------|-------|
+| 🩸 Diabetes | Random Forest Classifier |
+| ❤️ Heart Disease | Random Forest Classifier |
+| 💉 Hypertension | Random Forest Classifier |
+| 🫘 Kidney Disease | Random Forest Classifier |
+| 🧪 Liver Disease | Random Forest Classifier |
+
+> All models trained on real medical datasets with **85%+ accuracy**
 
 ---
 
-## 📄 PDF-Based Auto Fill
+## 📁 Project Structure
 
-Upload a lab report PDF and the app will automatically extract values such as:
+```
+AI-Health-Analyzer/
+│
+├── App/
+│   └── app.py                  # Main Streamlit application
+│
+├── Dataset/                    # Training datasets (5 diseases)
+│
+├── Models/                     # Trained ML models (.pkl files)
+│   ├── diabetes.pkl
+│   ├── heart.pkl
+│   ├── kidney.pkl
+│   ├── liver.pkl
+│   ├── hypertension.pkl
+│   └── scaler.pkl
+│
+├── Notebook/                   # Jupyter notebooks for training & EDA
+│
+├── .devcontainer/              # Dev container configuration
+├── .gitignore
+├── LICENSE
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 🩺 How It Works
+
+1. **(Optional)** Upload a lab report PDF or fill in values manually
+2. Review all health parameters — each shows a live status badge
+3. Click **"Analyze Health Report"**
+4. App runs 5 ML models + applies clinical threshold rules
+5. View risk cards, bar chart comparison, and personalized recommendations
+
+---
+
+## 📄 PDF Auto-Fill Fields
+
+When a PDF is uploaded, the app automatically extracts:
 
 - Age & Gender
 - Blood Glucose & HbA1c
@@ -44,64 +92,35 @@ Upload a lab report PDF and the app will automatically extract values such as:
 - Creatinine
 - ALT / AST (Liver enzymes)
 
-Any field not found in the PDF is either left blank (Age & Gender — required) or filled with a normal/healthy default value, which you can edit before running the analysis.
-
----
-
-## 🩺 How It Works
-
-1. (Optional) Upload a lab report PDF, or skip and fill in values manually.
-2. Review/edit all health parameters — each shows a live status badge.
-3. Click **"Analyze Health Report"**.
-4. The app runs 5 ML models, then applies clinical threshold rules to refine results.
-5. View results as risk cards, a comparison bar chart, and personalized recommendations.
+> Fields not found in PDF are filled with healthy default values, which you can edit before analysis.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Python**
-- **Streamlit** – web app framework
-- **Scikit-learn** – ML models
-- **Pandas / NumPy** – data handling
-- **Matplotlib** – visualizations
-- **pdfplumber** – PDF text extraction
+| Tool | Purpose |
+|------|---------|
+| Python | Core language |
+| Streamlit | Web app framework |
+| Scikit-learn | ML model training & prediction |
+| Pandas / NumPy | Data handling |
+| Matplotlib | Visualizations |
+| pdfplumber | PDF text extraction |
+| Pickle | Model serialization |
 
 ---
 
-## 📁 Project Structure
-AI-Health-Analyzer/
-
-├── App/
-
-│   └── app.py
-
-├── Models/
-
-│   ├── diabetes.pkl
-
-│   ├── heart.pkl
-
-│   ├── kidney.pkl
-
-│   ├── liver.pkl
-
-│   ├── hypertension.pkl
-
-│   └── scaler.pkl
-
-├── requirements.txt
-
-└── README.md
-
----
-
-## ▶️ Running Locally
+## ▶️ Run Locally
 
 ```bash
-git clone https://github.com/yourusername/AI-Health-Analyzer.git
+# 1. Clone the repository
+git clone https://github.com/ahmadali2622/AI-Health-Analyzer.git
 cd AI-Health-Analyzer
+
+# 2. Install dependencies
 pip install -r requirements.txt
+
+# 3. Run the app
 streamlit run App/app.py
 ```
 
@@ -110,3 +129,11 @@ streamlit run App/app.py
 ## ⚠️ Disclaimer
 
 This application is for **educational and informational purposes only**. It is **not** a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider for medical concerns.
+
+---
+
+## 👤 Author
+
+**Ahmad Ali**
+BS Computer Science — Lahore Leads University
+[LinkedIn](https://www.linkedin.com/in/ahmad-ali-117a8a264) | [GitHub](https://github.com/ahmadali2622)
