@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 import io
+import os
 
 # deefdrvrgfttr── Page Config ──────────────────────────────────────────────────
 st.set_page_config(
@@ -41,12 +42,19 @@ st.markdown("""
         padding: 16px;
         margin-bottom: 20px;
     }
+
+    /* Hide number_input +/- step buttons */
+    button[data-testid="stNumberInputStepDown"],
+    button[data-testid="stNumberInputStepUp"] {
+        display: none !important;
+    }
+    div[data-testid="stNumberInput"] > div {
+        padding-right: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Load Models ──────────────────────────────────────────────────
-# ✅ Replace with this
-import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @st.cache_resource
@@ -59,7 +67,9 @@ def load_models():
     hypertension_model = pickle.load(open(os.path.join(models_path, 'hypertension.pkl'), 'rb'))
     scaler             = pickle.load(open(os.path.join(models_path, 'scaler.pkl'), 'rb'))
     return diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler
+
 diabetes_model, heart_model, kidney_model, liver_model, hypertension_model, scaler = load_models()
+
 # ── Header ───────────────────────────────────────────────────────
 st.markdown("<h1 style='text-align:center; color:#00C9A7;'>🏥 AI Health Analyzer</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:gray;'>Upload a lab report PDF or enter values manually for a 5-disease risk assessment</p>", unsafe_allow_html=True)
@@ -67,7 +77,6 @@ st.markdown("---")
 
 # ── PDF Upload & Extraction ──────────────────────────────────────
 def extract_value(text, patterns, default=None):
-    """Try multiple regex patterns to extract a numeric value from text."""
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
@@ -78,21 +87,17 @@ def extract_value(text, patterns, default=None):
     return default
 
 def extract_patient_info(pdf_text):
-    """Extract patient data fields from raw PDF text."""
     data = {}
 
-    # Age
     data['age'] = extract_value(pdf_text, [
         r'age[:\s]+(\d+)', r'patient age[:\s]+(\d+)', r'(\d+)\s*years?\s*old'
     ])
 
-    # Gender
     if re.search(r'\b(male|man|mr\.)\b', pdf_text, re.IGNORECASE):
         data['gender'] = 'Male'
     elif re.search(r'\b(female|woman|ms\.|mrs\.)\b', pdf_text, re.IGNORECASE):
         data['gender'] = 'Female'
 
-    # Blood Glucose
     data['glucose'] = extract_value(pdf_text, [
         r'blood glucose[:\s]+([\d.]+)',
         r'glucose[:\s]+([\d.]+)',
@@ -100,7 +105,6 @@ def extract_patient_info(pdf_text):
         r'fasting glucose[:\s]+([\d.]+)',
     ])
 
-    # HbA1c
     data['HbA1c'] = extract_value(pdf_text, [
         r'hba1c[:\s]+([\d.]+)',
         r'hb\s*a1c[:\s]+([\d.]+)',
@@ -108,13 +112,11 @@ def extract_patient_info(pdf_text):
         r'a1c[:\s]+([\d.]+)',
     ])
 
-    # BMI
     data['bmi'] = extract_value(pdf_text, [
         r'bmi[:\s]+([\d.]+)',
         r'body mass index[:\s]+([\d.]+)',
     ])
 
-    # Blood Pressure
     bp_match = re.search(r'(\d{2,3})\s*/\s*(\d{2,3})', pdf_text)
     if bp_match:
         data['sysBP'] = float(bp_match.group(1))
@@ -127,14 +129,12 @@ def extract_patient_info(pdf_text):
             r'diastolic[:\s]+([\d.]+)', r'dia\s*bp[:\s]+([\d.]+)',
         ])
 
-    # Cholesterol
     data['chol'] = extract_value(pdf_text, [
         r'total cholesterol[:\s]+([\d.]+)',
         r'cholesterol[:\s]+([\d.]+)',
         r'chol[:\s]+([\d.]+)',
     ])
 
-    # Hemoglobin
     data['hemo'] = extract_value(pdf_text, [
         r'hemoglobin[:\s]+([\d.]+)',
         r'haemoglobin[:\s]+([\d.]+)',
@@ -142,13 +142,11 @@ def extract_patient_info(pdf_text):
         r'\bhb[:\s]+([\d.]+)',
     ])
 
-    # Creatinine
     data['creatinine'] = extract_value(pdf_text, [
         r'creatinine[:\s]+([\d.]+)',
         r'serum creatinine[:\s]+([\d.]+)',
     ])
 
-    # ALT / AST
     data['alt'] = extract_value(pdf_text, [
         r'\balt[:\s]+([\d.]+)',
         r'alanine aminotransferase[:\s]+([\d.]+)',
@@ -165,7 +163,7 @@ def extract_patient_info(pdf_text):
 # ── PDF Section ───────────────────────────────────────────────────
 st.markdown('<div class="pdf-section">', unsafe_allow_html=True)
 st.markdown("### 📄 Upload Lab Report PDF *(optional)*")
-st.caption("Upload a PDF lab report to auto-fill patient fields. You can still edit any value manually after extraction.")
+st.caption("Upload a PDF lab report to auto-fill patient fields. Age and Gender must be entered manually if not found in the PDF. Other missing fields will default to normal/healthy values, which you can edit.")
 
 uploaded_pdf = st.file_uploader("Choose a PDF file", type=["pdf"], label_visibility="collapsed")
 
@@ -192,20 +190,69 @@ if uploaded_pdf is not None:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ── Helper: get extracted or default ────────────────────────────
-def ex(key, default):
-    v = extracted.get(key)
-    return v if v is not None else default
+# ── Session State Initialization ─────────────────────────────────
+field_keys = ['age', 'glucose', 'HbA1c', 'bmi', 'sysBP', 'diaBP',
+               'chol', 'hemo', 'creatinine', 'alt', 'ast', 'gender']
+
+# Fields that must be int vs float (must match number_input min/max types below)
+int_fields = {'age', 'glucose', 'sysBP', 'diaBP', 'chol', 'alt', 'ast'}
+float_fields = {'HbA1c', 'bmi', 'hemo', 'creatinine'}
+
+# Normal/healthy default values used when a field isn't found in the PDF.
+# age and gender are intentionally excluded — they're required from the user.
+normal_defaults = {
+    'glucose': 100,
+    'HbA1c': 5.4,
+    'bmi': 22.0,
+    'sysBP': 118,
+    'diaBP': 78,
+    'chol': 180,
+    'hemo': 14.0,
+    'creatinine': 0.9,
+    'alt': 25,
+    'ast': 25,
+}
+
+def cast_field(k, v):
+    if v is None:
+        return None
+    if k in int_fields:
+        return int(v)
+    elif k in float_fields:
+        return float(v)
+    return v  # gender, etc.
+
+for k in field_keys:
+    if k not in st.session_state:
+        val = cast_field(k, extracted.get(k))
+        if val is None and k in normal_defaults:
+            val = cast_field(k, normal_defaults[k])
+        st.session_state[k] = val  # age/gender stay None if not found in PDF
+
+# Track the last processed PDF so re-uploading a NEW pdf overwrites fields,
+# but rerunning with the SAME pdf doesn't keep resetting your edits.
+last_pdf_name = st.session_state.get('_last_pdf_name')
+current_pdf_name = uploaded_pdf.name if uploaded_pdf is not None else None
+
+if current_pdf_name is not None and current_pdf_name != last_pdf_name:
+    for k in field_keys:
+        v = extracted.get(k)
+        if v is not None:
+            st.session_state[k] = cast_field(k, v)
+        elif k in normal_defaults:
+            # Not found in this PDF — reset to normal default
+            st.session_state[k] = cast_field(k, normal_defaults[k])
+        else:
+            # age / gender — clear so user must enter manually
+            st.session_state[k] = None
+    st.session_state['_last_pdf_name'] = current_pdf_name
+elif current_pdf_name is None:
+    st.session_state['_last_pdf_name'] = None
 
 # ── Status badge helper ──────────────────────────────────────────
 def status_badge(value, healthy_max, warning_max=None, unit="", low_warning=None):
-    """
-    Returns HTML badge.
-    healthy_max  → below this = Healthy
-    warning_max  → below this = Borderline
-    above both   → At Risk
-    low_warning  → below this = Low (optional)
-    """
+    if value is None:
+        return ""
     if low_warning is not None and value < low_warning:
         return f'<span class="warning-badge">⚠️ Low ({value}{unit})</span>'
     elif value <= healthy_max:
@@ -218,53 +265,59 @@ def status_badge(value, healthy_max, warning_max=None, unit="", low_warning=None
 # ── Input Section ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📋 Patient Information")
-st.caption("Fields auto-filled from PDF are editable — adjust any value as needed.")
+st.caption("Fields auto-filled from PDF are editable — Age and Gender are required.")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    age = st.number_input("Age", min_value=1, max_value=120, value=int(ex('age', 45)))
-    glucose = st.number_input("Blood Glucose (mg/dL)", min_value=50, max_value=500, value=int(ex('glucose', 120)))
-    st.markdown(status_badge(glucose, 99, 125, " mg/dL"), unsafe_allow_html=True)
+    age = st.number_input("Age", min_value=1, max_value=120, value=st.session_state['age'], key='age')
+    glucose = st.number_input("Blood Glucose (mg/dL)", min_value=50, max_value=500, value=st.session_state['glucose'], key='glucose')
+    st.markdown(status_badge(glucose, 100, 125, " mg/dL"), unsafe_allow_html=True)
 
-    HbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=float(ex('HbA1c', 5.5)))
+    HbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=st.session_state['HbA1c'], key='HbA1c')
     st.markdown(status_badge(HbA1c, 5.6, 6.4, "%"), unsafe_allow_html=True)
 
-    bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=float(ex('bmi', 25.0)))
+    bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=st.session_state['bmi'], key='bmi')
     st.markdown(status_badge(bmi, 24.9, 29.9, ""), unsafe_allow_html=True)
 
 with col2:
-    sysBP = st.number_input("Systolic BP (mmHg)", min_value=80, max_value=250, value=int(ex('sysBP', 120)))
+    sysBP = st.number_input("Systolic BP (mmHg)", min_value=80, max_value=250, value=st.session_state['sysBP'], key='sysBP')
     st.markdown(status_badge(sysBP, 120, 130, " mmHg"), unsafe_allow_html=True)
 
-    diaBP = st.number_input("Diastolic BP (mmHg)", min_value=50, max_value=150, value=int(ex('diaBP', 80)))
+    diaBP = st.number_input("Diastolic BP (mmHg)", min_value=50, max_value=150, value=st.session_state['diaBP'], key='diaBP')
     st.markdown(status_badge(diaBP, 80, 89, " mmHg"), unsafe_allow_html=True)
 
-    chol = st.number_input("Cholesterol (mg/dL)", min_value=100, max_value=600, value=int(ex('chol', 180)))
+    chol = st.number_input("Cholesterol (mg/dL)", min_value=100, max_value=600, value=st.session_state['chol'], key='chol')
     st.markdown(status_badge(chol, 199, 239, " mg/dL"), unsafe_allow_html=True)
 
-    hemo = st.number_input("Hemoglobin (g/dL)", min_value=3.0, max_value=20.0, value=float(ex('hemo', 13.0)))
-    # Hemoglobin: healthy 12–17 depending on gender
+    hemo = st.number_input("Hemoglobin (g/dL)", min_value=3.0, max_value=20.0, value=st.session_state['hemo'], key='hemo')
     st.markdown(status_badge(hemo, 17.0, None, " g/dL", low_warning=11.0), unsafe_allow_html=True)
 
 with col3:
-    creatinine = st.number_input("Creatinine (mg/dL)", min_value=0.1, max_value=15.0, value=float(ex('creatinine', 0.9)))
+    creatinine = st.number_input("Creatinine (mg/dL)", min_value=0.1, max_value=15.0, value=st.session_state['creatinine'], key='creatinine')
     st.markdown(status_badge(creatinine, 1.2, 1.5, " mg/dL"), unsafe_allow_html=True)
 
-    alt = st.number_input("ALT (U/L)", min_value=1, max_value=500, value=int(ex('alt', 25)))
+    alt = st.number_input("ALT (U/L)", min_value=1, max_value=500, value=st.session_state['alt'], key='alt')
     st.markdown(status_badge(alt, 40, 56, " U/L"), unsafe_allow_html=True)
 
-    ast = st.number_input("AST (U/L)", min_value=1, max_value=500, value=int(ex('ast', 25)))
+    ast = st.number_input("AST (U/L)", min_value=1, max_value=500, value=st.session_state['ast'], key='ast')
     st.markdown(status_badge(ast, 40, 55, " U/L"), unsafe_allow_html=True)
 
-    gender_default = extracted.get('gender', 'Male')
     gender_options = ["Male", "Female"]
-    gender = st.selectbox("Gender", gender_options, index=gender_options.index(gender_default) if gender_default in gender_options else 0)
+    gender_val = st.session_state['gender']
+    gender_index = gender_options.index(gender_val) if gender_val in gender_options else None
+    gender = st.selectbox("Gender", gender_options, index=gender_index, key='gender', placeholder="Select gender")
 
 st.markdown("---")
 
 # ── Predict Button ───────────────────────────────────────────────
 if st.button("🔬 Analyze Health Report", use_container_width=True):
+
+    # ── Validate required fields (age, gender) ─────────────────────
+    missing = [k for k in field_keys if st.session_state[k] is None]
+    if missing:
+        st.error(f"⚠️ Please fill in: {', '.join(missing)} — these could not be detected from the PDF.")
+        st.stop()
 
     gender_male = 1 if gender == "Male" else 0
 
@@ -328,25 +381,15 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
     hypertension = hypertension_model.predict(hypertension_input)[0]
 
     # ── Clinical override rules ───────────────────────────────────
-    # These use real medical thresholds. If values are clearly normal,
-    # we mark Healthy regardless of model output. If values are clearly
-    # abnormal, we mark At Risk regardless of model output.
-    # Only in the grey zone do we trust the ML model.
-
     def clinical_diabetes(model_result):
-        # Diabetic: glucose > 126 fasting OR HbA1c >= 6.5
-        # Pre-diabetic: glucose 100–125 OR HbA1c 5.7–6.4
-        # Healthy: glucose < 100 AND HbA1c < 5.7
         if glucose >= 126 or HbA1c >= 6.5:
-            return 1  # At Risk
+            return 1
         elif glucose < 100 and HbA1c < 5.7:
-            return 0  # Healthy
+            return 0
         else:
-            return model_result  # borderline → trust ML
+            return model_result
 
     def clinical_heart(model_result):
-        # At risk: cholesterol > 240 OR sysBP > 140
-        # Healthy: chol < 200 AND sysBP < 120
         if chol > 240 or sysBP > 140:
             return 1
         elif chol < 200 and sysBP < 120:
@@ -355,8 +398,6 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
             return model_result
 
     def clinical_kidney(model_result):
-        # At risk: creatinine > 1.2 (men) / 1.1 (women) — use 1.2
-        # Healthy: creatinine < 0.9
         if creatinine > 1.2:
             return 1
         elif creatinine < 0.9:
@@ -365,8 +406,6 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
             return model_result
 
     def clinical_liver(model_result):
-        # At risk: ALT > 56 OR AST > 40
-        # Healthy: ALT < 25 AND AST < 25
         if alt > 56 or ast > 40:
             return 1
         elif alt < 25 and ast < 25:
@@ -375,8 +414,6 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
             return model_result
 
     def clinical_hypertension(model_result):
-        # At risk: sysBP > 130 OR diaBP > 80 (Stage 1 hypertension)
-        # Healthy: sysBP < 120 AND diaBP < 80
         if sysBP > 130 or diaBP > 80:
             return 1
         elif sysBP < 120 and diaBP < 80:
@@ -384,11 +421,10 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
         else:
             return model_result
 
-    # Apply clinical overrides
-    dibeties_final    = clinical_diabetes(dibeties)
-    heart_final       = clinical_heart(heart)
-    kidney_final      = clinical_kidney(kidney)
-    liver_final       = clinical_liver(liver)
+    dibeties_final     = clinical_diabetes(dibeties)
+    heart_final        = clinical_heart(heart)
+    kidney_final       = clinical_kidney(kidney)
+    liver_final        = clinical_liver(liver)
     hypertension_final = clinical_hypertension(hypertension)
 
     # ── Results ──────────────────────────────────────────────────
@@ -403,10 +439,10 @@ if st.button("🔬 Analyze Health Report", use_container_width=True):
                 st.success(f"{icon}\n\n**{name}**\n\n✅ Healthy")
 
     show_result(c1, "Diabetes",       dibeties_final,     "🩸")
-    show_result(c2, "Heart Disease",  heart_final,         "❤️")
-    show_result(c3, "Kidney Disease", kidney_final,        "🫘")
-    show_result(c4, "Liver Disease",  liver_final,         "🫀")
-    show_result(c5, "Hypertension",   hypertension_final,  "💉")
+    show_result(c2, "Heart Disease",  heart_final,        "❤️")
+    show_result(c3, "Kidney Disease", kidney_final,       "🫘")
+    show_result(c4, "Liver Disease",  liver_final,        "🫀")
+    show_result(c5, "Hypertension",   hypertension_final, "💉")
 
     # ── Bar Chart ────────────────────────────────────────────────
     st.markdown("---")

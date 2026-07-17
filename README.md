@@ -1,202 +1,139 @@
-```md
 # 🏥 AI Health Analyzer
 
-AI Health Analyzer is a machine learning–based web application that predicts the risk of multiple diseases using patient health data. It provides instant analysis for **Diabetes, Heart Disease, Kidney Disease, Liver Disease, and Hypertension** in a single dashboard.
+An AI-powered health care web application that analyzes medical reports, predicts disease risk, and provides personalized health recommendations — all in one dashboard.
 
-Built with **Python, Scikit-learn, and Streamlit**, this project demonstrates an end-to-end machine learning pipeline from training to deployment.
+🔗 **Live Demo:** [ai-health-analyzer.streamlit.app](https://ai-health-analyzer.streamlit.app)
 
 ---
 
-## 🚀 Features
+## 📌 Overview
 
-- Predicts 5 major diseases at once
-- Clean and interactive Streamlit UI
-- Real-time health risk analysis
-- Visual result dashboard with charts
-- Basic health recommendations based on inputs
-- Lightweight and easy to deploy
+AI Health Analyzer uses machine learning to predict the risk of **5 major diseases** from patient health data. It supports both manual input and automatic PDF lab report extraction, making it accessible and practical for real-world use.
+
+---
+
+## ✨ Features
+
+- 🩺 Predicts **5 diseases simultaneously** from a single set of inputs
+- 📄 **PDF lab report upload** — auto-extracts patient values (glucose, BP, cholesterol, etc.)
+- ✍️ **Manual entry mode** — fill in values directly if no PDF is available
+- ✏️ Editable auto-filled fields — review and correct before analysis
+- 🔬 Hybrid prediction engine — ML models + clinical threshold rules
+- 🏷️ Real-time **health status badges** (Healthy / Borderline / At Risk)
+- 📊 Visual result dashboard with bar chart comparison
+- 💊 Personalized **diet plan & health recommendations**
+- 🧹 Clean, responsive Streamlit UI
 
 ---
 
 ## 🧠 Diseases Covered
 
-- 🩸 Diabetes  
-- ❤️ Heart Disease  
-- 🫘 Kidney Disease  
-- 🫀 Liver Disease  
-- 💉 Hypertension  
+| Disease | Model |
+|---------|-------|
+| 🩸 Diabetes | Random Forest Classifier |
+| ❤️ Heart Disease | Random Forest Classifier |
+| 💉 Hypertension | Random Forest Classifier |
+| 🫘 Kidney Disease | Random Forest Classifier |
+| 🧪 Liver Disease | Random Forest Classifier |
+
+> All models trained on real medical datasets with **85%+ accuracy**
 
 ---
 
 ## 📁 Project Structure
 
 ```
-
 AI-Health-Analyzer/
 │
-├── notebooks/
-│     └── model_training.ipynb
+├── App/
+│   └── app.py                  # Main Streamlit application
 │
-├── app/
-│     └── streamlit_app.py
+├── Dataset/                    # Training datasets (5 diseases)
 │
-├── models/
-│     ├── diabetes.pkl
-│     ├── heart.pkl
-│     ├── kidney.pkl
-│     ├── liver.pkl
-│     ├── hypertension.pkl
-│     └── scaler.pkl
+├── Models/                     # Trained ML models (.pkl files)
+│   ├── diabetes.pkl
+│   ├── heart.pkl
+│   ├── kidney.pkl
+│   ├── liver.pkl
+│   ├── hypertension.pkl
+│   └── scaler.pkl
 │
-├── data/
-│     └── dataset.csv
+├── Notebook/                   # Jupyter notebooks for training & EDA
 │
+├── .devcontainer/              # Dev container configuration
+├── .gitignore
+├── LICENSE
 ├── requirements.txt
 └── README.md
-
-````
-
----
-
-## ⚙️ Installation
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/ahmadali2622/AI-Health-Analyzer.git
-cd AI-Health-Analyzer
-````
-
----
-
-### 2. Create virtual environment
-
-```bash
-python -m venv venv
-venv\Scripts\activate
 ```
 
 ---
 
-### 3. Install dependencies
+## 🩺 How It Works
 
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## ▶️ Run the Application
-
-Start the Streamlit app:
-
-```bash
-streamlit run app/streamlit_app.py
-```
-
-Then open in browser:
-
-```
-http://localhost:8501
-```
+1. **(Optional)** Upload a lab report PDF or fill in values manually
+2. Review all health parameters — each shows a live status badge
+3. Click **"Analyze Health Report"**
+4. App runs 5 ML models + applies clinical threshold rules
+5. View risk cards, bar chart comparison, and personalized recommendations
 
 ---
 
-## 🧪 How It Works
+## 📄 PDF Auto-Fill Fields
 
-1. User enters health parameters (age, glucose, BP, cholesterol, etc.)
-2. Pre-trained ML models process the input
-3. Each disease model predicts risk (0 = Healthy, 1 = At Risk)
-4. Results are displayed with:
+When a PDF is uploaded, the app automatically extracts:
 
-   * Risk labels
-   * Color indicators
-   * Bar chart visualization
-   * Health recommendations
+- Age & Gender
+- Blood Glucose & HbA1c
+- BMI
+- Blood Pressure (Systolic / Diastolic)
+- Total Cholesterol
+- Hemoglobin
+- Creatinine
+- ALT / AST (Liver enzymes)
+
+> Fields not found in PDF are filled with healthy default values, which you can edit before analysis.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* Python 🐍
-* Pandas & NumPy
-* Scikit-learn
-* XGBoost
-* Matplotlib
-* Streamlit
+| Tool | Purpose |
+|------|---------|
+| Python | Core language |
+| Streamlit | Web app framework |
+| Scikit-learn | ML model training & prediction |
+| Pandas / NumPy | Data handling |
+| Matplotlib | Visualizations |
+| pdfplumber | PDF text extraction |
+| Pickle | Model serialization |
 
 ---
 
-## 📦 Requirements
+## ▶️ Run Locally
 
+```bash
+# 1. Clone the repository
+git clone https://github.com/ahmadali2622/AI-Health-Analyzer.git
+cd AI-Health-Analyzer
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the app
+streamlit run App/app.py
 ```
-streamlit
-pandas
-numpy
-scikit-learn
-matplotlib
-seaborn
-xgboost
-Pillow
-```
-
----
-
-## 🌐 Deployment
-
-You can deploy this project using **Streamlit Cloud**:
-
-1. Push project to GitHub
-2. Go to [https://share.streamlit.io](https://share.streamlit.io)
-3. Connect your repository
-4. Select:
-
-   * Main file: `app/streamlit_app.py`
-5. Click **Deploy 🚀**
-
----
-
-## 📊 Example Use Case
-
-This system can be used for:
-
-* Quick health risk screening
-* Educational ML projects
-* AI healthcare demonstrations
-* Portfolio projects for internships/jobs
-
----
-
-## 🔮 Future Improvements
-
-* Add medical report OCR scanning
-* Add patient history tracking
-* Improve model accuracy with deep learning
-* Add authentication system
-* Add downloadable health report (PDF)
-
----
-
-## 👨‍💻 Author
-
-**Ahmed Ali**
-BS Computer Science Student
-Interested in AI, Machine Learning, and Full Stack Development
-
----
-
-## ⭐ Support
-
-If you like this project:
-
-* Give it a ⭐ on GitHub
-* Share it with others
-* Use it in your portfolio
 
 ---
 
 ## ⚠️ Disclaimer
 
-This project is for **educational purposes only** and should not be used as a medical diagnosis tool.
+This application is for **educational and informational purposes only**. It is **not** a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider for medical concerns.
 
-```
-```
+---
+
+## 👤 Author
+
+**Ahmad Ali**
+BS Computer Science — Lahore Leads University
+[LinkedIn](https://www.linkedin.com/in/ahmad-ali-117a8a264) | [GitHub](https://github.com/ahmadali2622)
