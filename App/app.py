@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import re
 import io
 
-# ── Page Config ──────────────────────────────────────────────────
+# deefdrvrgfttr── Page Config ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="AI Health Analyzer",
     page_icon="🏥",
